@@ -1,6 +1,8 @@
 package internal
 
-import "context"
+import (
+	"sync"
+)
 
 type UserGeoPosition struct {
 	Id    [16]byte // https://github.com/google/uuid
@@ -12,6 +14,24 @@ type Coord struct {
 	Long float64
 }
 
-func Process(ctx context.Context, upos UserGeoPosition) (Coord, error) {
-	return Coord{}, nil
+type Locations struct {
+	sync.RWMutex
+	uPos []UserGeoPosition
+}
+
+type Storage interface {
+	Save(newCoords UserGeoPosition) (int, error)
+	FindLocation(newCoords UserGeoPosition) (Coord, error)
+}
+
+func Process(storage Storage, newCoords UserGeoPosition) (Coord, int, error) {
+	loc, err := storage.FindLocation(newCoords)
+	if err != nil {
+		return Coord{}, 0, err
+	}
+	count, err := storage.Save(newCoords)
+	if err != nil {
+		return Coord{}, 0, err
+	}
+	return loc, count, nil
 }
